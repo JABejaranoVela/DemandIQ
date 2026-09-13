@@ -47,3 +47,13 @@ Aceptada. Python 3.13 y uv.lock, versiones estables sin RC/beta. NumPy es transi
 No se instala scikit-learn antes de implementar forecasting. Schemathesis se pospone frente a
 las pruebas explícitas de datos, persistencia y API. Docker/CI ahora; despliegue, GHCR de
 producción y Nginx después.
+
+## 008 — Protocolo Forecasting V1
+
+Aceptada el 2026-09-14. El protocolo 1.0 queda definido en
+[Forecasting V1](forecasting-spec.md): CA_1 / FOODS_1, 508 días, horizonte de 14 días,
+seis folds expansivos y test final. Se comparan un baseline semanal suavizado y un
+HistGradientBoostingRegressor global con Poisson y predicción recursiva. RMSE acumulado
+es la métrica principal; la selección se fija con desarrollo antes del test.
+La aprobación cierra las decisiones metodológicas del primer experimento. Forecasting
+permanece sin implementar; no se añaden precios, reposición ni Power BI en esta tarea.

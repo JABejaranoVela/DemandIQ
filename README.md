@@ -3,8 +3,10 @@
 Sistema de análisis de ventas observadas y, en fases posteriores, forecasting y apoyo a
 decisiones de reposición. Portfolio de Python backend, Data Engineering y BI.
 
-**Estado: FOUNDATION + primera DATA FOUNDATION.** Están implementadas la ingesta batch,
-la persistencia PostgreSQL, la trazabilidad y una API de consulta.
+**Estado: FOUNDATION + DATA FOUNDATION validadas con M5 real.** Están implementadas la ingesta
+batch, la persistencia PostgreSQL, la trazabilidad y una API de consulta.
+[Forecasting V1](docs/forecasting-spec.md) está especificado y aceptado (protocolo 1.0),
+pero todavía no implementado.
 
 ## Problema y límites
 
@@ -30,8 +32,9 @@ configurados/simulados cuando corresponda. No se afirma recuperar demanda perdid
 
 ## PLANNED
 
-- Subconjunto empresarial definitivo y política de correcciones del origen.
-- Baseline, un candidato inicial, evaluación temporal y forecasting.
+- Política de correcciones del origen.
+- Implementación de baseline, candidato, evaluación temporal y forecasts conforme al
+  [protocolo Forecasting V1 aceptado](docs/forecasting-spec.md).
 - Inventario configurado, reposición explicable y publicación de resultados analíticos.
 - Power BI y definición de vigencia de resultados.
 - Revisión de condiciones para compartir datos e informes.
@@ -215,7 +218,8 @@ La primera carga real se ha validado con CA_1 / FOODS_1, del 2015-01-01 al 2016-
 216 productos, 508 días y 109.728 observaciones. CSV y PostgreSQL coinciden en todas las
 observaciones: 169.836 unidades y 55.701 ceros. Reingesta sin duplicados y consultas HTTP
 contrastadas para tres SKUs. La selección está en el .env local y sigue siendo configurable;
-no fija el alcance de forecasting. Los seis controles previos permanecen identificados
+fue provisional para DATA FOUNDATION y ahora está aceptada para Forecasting V1.
+Los seis controles previos permanecen identificados
 como synthetic-control/DEMO_STORE y se excluyeron de las comprobaciones M5.
 
 Primera ingesta: 91,3 s de proceso y 133,5 MiB de pico RSS Python; reingesta: 0,7 s.
@@ -235,9 +239,9 @@ remoto de Actions. Git está inicializado; esta entrega no crea commits.
 
 ## Próximas decisiones
 
-Antes de forecasting: subconjunto definitivo, corte, horizonte, backtesting, métricas,
-baseline, candidato, features disponibles en cada corte y series insuficientes.
-Después: forecast que alimenta reposición, política del escenario, publicación y KPIs.
+Las decisiones de Forecasting V1 están aceptadas en el [protocolo 1.0](docs/forecasting-spec.md),
+incluida la política de selección baseline/candidato. Su implementación sigue pendiente.
+Después: política del escenario de inventario, integración con reposición y KPIs.
 
 Las dos revisiones Markdown originales permanecen en la raíz como contexto histórico.
 Este README describe el comportamiento implementado.
