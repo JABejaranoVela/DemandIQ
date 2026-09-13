@@ -1,0 +1,50 @@
+name: demandiq
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: ${DEMANDIQ_POSTGRES_USER:-demandiq}
+      POSTGRES_PASSWORD: ${DEMANDIQ_POSTGRES_PASSWORD:?Set DEMANDIQ_POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${DEMANDIQ_POSTGRES_DB:-demandiq}
+    ports:
+      - "127.0.0.1:${DEMANDIQ_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build: .
+    environment:
+      DEMANDIQ_ENVIRONMENT: development
+      DEMANDIQ_POSTGRES_HOST: postgres
+      DEMANDIQ_POSTGRES_PORT: "5432"
+      DEMANDIQ_POSTGRES_USER: ${DEMANDIQ_POSTGRES_USER:-demandiq}
+      DEMANDIQ_POSTGRES_PASSWORD: ${DEMANDIQ_POSTGRES_PASSWORD:?Set DEMANDIQ_POSTGRES_PASSWORD in .env}
+      DEMANDIQ_POSTGRES_DB: ${DEMANDIQ_POSTGRES_DB:-demandiq}
+      DEMANDIQ_DATA_DIR: /app/data/raw
+      DEMANDIQ_ARCHIVE_DIR: /app/data/archive
+      DEMANDIQ_LOG_LEVEL: ${DEMANDIQ_LOG_LEVEL:-INFO}
+      DEMANDIQ_SOURCE: ${DEMANDIQ_SOURCE:-m5}
+      DEMANDIQ_M5_START_DATE: ${DEMANDIQ_M5_START_DATE:-}
+      DEMANDIQ_M5_END_DATE: ${DEMANDIQ_M5_END_DATE:-}
+      DEMANDIQ_M5_STORE_IDS: ${DEMANDIQ_M5_STORE_IDS:-[]}
+      DEMANDIQ_M5_ITEM_IDS: ${DEMANDIQ_M5_ITEM_IDS:-[]}
+      DEMANDIQ_M5_DEPARTMENT_IDS: ${DEMANDIQ_M5_DEPARTMENT_IDS:-[]}
+      DEMANDIQ_M5_CATEGORY_IDS: ${DEMANDIQ_M5_CATEGORY_IDS:-[]}
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./data/raw:/app/data/raw:ro
+      - ingestion_archive:/app/data/archive
+      - control_data:/app/data/control
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  postgres_data:
+  ingestion_archive:
+  control_data:

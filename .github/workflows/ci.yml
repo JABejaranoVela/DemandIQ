@@ -1,0 +1,46 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: demandiq
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-ephemeral
+          POSTGRES_DB: demandiq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U demandiq -d demandiq_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DEMANDIQ_ENVIRONMENT: test
+      DEMANDIQ_POSTGRES_USER: demandiq
+      DEMANDIQ_POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}-ephemeral
+      DEMANDIQ_POSTGRES_DB: demandiq_test
+      DEMANDIQ_RUN_DB_TESTS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.18"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+      - run: uv run --locked pytest
+      - run: uv run --locked alembic upgrade head
+      - run: uv run --locked alembic check
+      - run: docker build --tag demandiq:ci .
