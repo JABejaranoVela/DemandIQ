@@ -28,7 +28,7 @@ services:
       DEMANDIQ_DATA_DIR: /app/data/raw
       DEMANDIQ_ARCHIVE_DIR: /app/data/archive
       DEMANDIQ_LOG_LEVEL: ${DEMANDIQ_LOG_LEVEL:-INFO}
-      DEMANDIQ_SOURCE: ${DEMANDIQ_SOURCE:-m5}
+      DEMANDIQ_SOURCE: m5
       DEMANDIQ_M5_START_DATE: ${DEMANDIQ_M5_START_DATE:-}
       DEMANDIQ_M5_END_DATE: ${DEMANDIQ_M5_END_DATE:-}
       DEMANDIQ_M5_STORE_IDS: ${DEMANDIQ_M5_STORE_IDS:-[]}
@@ -40,11 +40,9 @@ services:
     volumes:
       - ./data/raw:/app/data/raw:ro
       - ingestion_archive:/app/data/archive
-      - control_data:/app/data/control
     depends_on:
       postgres:
         condition: service_healthy
 volumes:
   postgres_data:
   ingestion_archive:
-  control_data:

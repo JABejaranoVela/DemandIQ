@@ -95,29 +95,6 @@ El batch utiliza la misma imagen mediante docker compose run --rm api demandiq.
 El healthcheck PostgreSQL comprueba disponibilidad. El de API comprueba conexión y migración.
 Sin migraciones, /health puede responder, pero /api/v1/ready devuelve 503.
 
-## Demo sin descargar ni redistribuir M5
-
-El generador produce **seis observaciones sintéticas propias**, no datos extraídos de Walmart.
-Los IDs DEMO y fechas de 2020 no fijan la selección empresarial futura.
-
-Con la base migrada:
-
-```text
-uv run --locked demandiq control-data
-uv run --locked demandiq ingest --data-dir data/control --source synthetic-control --store-id DEMO_STORE --start-date 2020-01-01 --end-date 2020-01-03
-```
-
-Dentro de Docker:
-
-```text
-docker compose run --rm api demandiq control-data --output /app/data/control
-docker compose run --rm api demandiq ingest --data-dir /app/data/control --source synthetic-control --store-id DEMO_STORE --start-date 2020-01-01 --end-date 2020-01-03
-```
-
-El generador se niega a sobrescribir archivos. Si ya se generaron, ejecuta únicamente la ingesta.
-Repetirla crea un intento con reused_load_id hacia el original, sin nuevas ventas.
-DEMO_ITEM_A tiene ventas **2, 0, 4**, total **6**; el conjunto completo contiene seis filas y diez unidades.
-
 ## Preparar e ingerir M5
 
 No se descarga automáticamente. Obtén los datos por tus propios medios autorizados y revisa
@@ -146,7 +123,7 @@ docker compose run --rm api demandiq ingest
 ```
 
 La CLI admite --store-id, --item-id, --department-id y --category-id repetibles;
---start-date, --end-date, --data-dir, --archive-dir y --source.
+--start-date, --end-date, --data-dir, --archive-dir.
 Los argumentos explícitos sustituyen al filtro correspondiente del entorno.
 
 Se archivan los originales completos una vez por contenido para auditoría. La transformación
@@ -168,7 +145,7 @@ en otro directorio de entrada. Las referencias están registradas por carga.
 | GET /docs | Swagger UI. |
 | GET /openapi.json | Contrato OpenAPI. |
 
-[Consulta de control](http://127.0.0.1:8000/api/v1/sales?item_id=DEMO_ITEM_A&store_id=DEMO_STORE&start_date=2020-01-01&end_date=2020-01-03)
+La consulta de ventas utiliza los item_id, store_id y fechas de la carga M5 seleccionada.
 
 Cada venta incluye load_id de su primera inserción. Un solapamiento idéntico no cambia su procedencia.
 El rango es inclusivo; los resultados se ordenan por fecha. Hay 500 filas por defecto y máximo
@@ -220,7 +197,8 @@ DEMANDIQ_POSTGRES_DB=demandiq_test DEMANDIQ_RUN_DB_TESTS=1 uv run --locked pytes
 
 Si usas DEMANDIQ_DATABASE_URL, sustitúyela también por la de pruebas: tiene prioridad.
 Sin DEMANDIQ_RUN_DB_TESTS=1 los tests de PostgreSQL se marcan skipped; CI los activa.
-Los controles son sintéticos y se generan en directorios temporales.
+Los controles sintéticos existen exclusivamente en tests/conftest.py y se generan en directorios
+temporales. La CLI de la aplicación ingiere M5 real; ya no ofrece control-data ni --source.
 
 ## Validación de esta entrega
 
@@ -228,12 +206,22 @@ Los controles son sintéticos y se generan en directorios temporales.
 - Ruff lint y format --check pasan.
 - Alembic upgrade, downgrade/upgrade de prueba y check sin diferencias pasan.
 - Docker build y arranque de ambos servicios con healthchecks pasan.
-- Ingesta Docker: seis ventas persistidas; reingesta sin duplicación.
-- Consulta HTTP desde Windows: ventas 2, 0, 4 y trazabilidad enlazada.
+- El E2E automatizado comprueba persistencia, reingesta y consulta API con controles aislados.
 - Hay dos avisos de deprecación de dependencias del TestClient; no causan fallos.
 
-No se ha ejecutado una carga con archivos reales M5: faltan su provisión autorizada y la
-selección definitiva. La demo valida el contrato y el flujo de software, no la calidad de M5.
+Los archivos originales M5 están disponibles localmente en data/raw/ y se han comprobado
+sus metadatos: 30.490 series, 3.049 productos y ventas del 2011-01-29 al 2016-05-22.
+La primera carga real se ha validado con CA_1 / FOODS_1, del 2015-01-01 al 2016-05-22:
+216 productos, 508 días y 109.728 observaciones. CSV y PostgreSQL coinciden en todas las
+observaciones: 169.836 unidades y 55.701 ceros. Reingesta sin duplicados y consultas HTTP
+contrastadas para tres SKUs. La selección está en el .env local y sigue siendo configurable;
+no fija el alcance de forecasting. Los seis controles previos permanecen identificados
+como synthetic-control/DEMO_STORE y se excluyeron de las comprobaciones M5.
+
+Primera ingesta: 91,3 s de proceso y 133,5 MiB de pico RSS Python; reingesta: 0,7 s.
+No se necesitaron cambios de implementación ni optimizaciones. Las evidencias locales
+están en artifacts/m5-validation-report.md y artifacts/m5-reconciliation.json, ignoradas
+por Git. Esta validación corresponde al subconjunto indicado, no a todo el dataset.
 
 ## CI y entrega
 

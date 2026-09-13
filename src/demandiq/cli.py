@@ -9,36 +9,27 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from demandiq.config import Settings, configure_logging
 from demandiq.db import make_engine
-from demandiq.ingestion.m5 import InputError, Selection, create_control_data
+from demandiq.ingestion.m5 import InputError, Selection
 from demandiq.ingestion.service import IngestionFailed, ingest
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="demandiq")
     commands = parser.add_subparsers(dest="command", required=True)
-    control = commands.add_parser(
-        "control-data", help="Generate tiny synthetic controls, not M5 data"
-    )
-    control.add_argument("--output", type=Path, default=Path("data/control"))
     batch = commands.add_parser("ingest", help="Ingest a configured subset of observed M5 sales")
     batch.add_argument("--data-dir", type=Path)
     batch.add_argument("--archive-dir", type=Path)
-    batch.add_argument("--source", choices=["m5", "synthetic-control"])
     for name in ("store-id", "item-id", "department-id", "category-id"):
         batch.add_argument("--" + name, action="append")
     batch.add_argument("--start-date")
     batch.add_argument("--end-date")
     args = parser.parse_args()
     try:
-        if args.command == "control-data":
-            create_control_data(args.output)
-            print("Synthetic control data created; not real M5/Walmart data.")
-            return 0
-        settings = Settings()
+        settings = Settings(source="m5")
         configure_logging(settings.log_level)
         changes = {
             key: getattr(args, key)
-            for key in ("data_dir", "archive_dir", "source")
+            for key in ("data_dir", "archive_dir")
             if getattr(args, key) is not None
         }
         settings = settings.model_copy(update=changes)

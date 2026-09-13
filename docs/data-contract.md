@@ -72,6 +72,8 @@ La publicación de forecasts y snapshots analíticos pertenece a fases posterior
 
 ## Controles propios
 
-control-data genera seis ventas inventadas de dos productos y una tienda. Usar source=synthetic-control.
+tests/conftest.py genera seis ventas inventadas de dos productos y una tienda,
+identificadas como synthetic-control en una base de pruebas dedicada.
+La CLI solo ingiere M5 real; estos controles no forman parte del recorrido de usuario.
 Sirven para probar el formato y recorrido sin redistribuir M5; no son datos Walmart,
 escenarios de inventario ni datos para evaluar forecasting.

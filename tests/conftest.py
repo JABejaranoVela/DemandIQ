@@ -1,4 +1,6 @@
+import csv
 import os
+from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
@@ -8,7 +10,29 @@ from sqlalchemy import text
 from alembic import command
 from demandiq.config import Settings
 from demandiq.db import make_engine
-from demandiq.ingestion.m5 import Selection, create_control_data
+from demandiq.ingestion.m5 import META_COLUMNS, InputError, Selection
+
+
+def create_control_data(directory: Path) -> None:
+    """Own tiny synthetic fixture; not extracted from or attributed to Walmart."""
+    directory.mkdir(parents=True, exist_ok=True)
+    targets = [directory / "calendar.csv", directory / "sales_train_evaluation.csv"]
+    if any(path.exists() for path in targets):
+        raise InputError("control_exists", "Control generation never overwrites existing files")
+    with targets[0].open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["d", "date"])
+        for index in range(3):
+            writer.writerow([f"d_{index + 1}", date(2020, 1, 1) + timedelta(days=index)])
+    with targets[1].open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(META_COLUMNS + ["d_1", "d_2", "d_3"])
+        writer.writerows(
+            [
+                ["DEMO_ITEM_A", "DEMO_STORE", "DEMO_DEPT", "DEMO_CAT", "DEMO_STATE", 2, 0, 4],
+                ["DEMO_ITEM_B", "DEMO_STORE", "DEMO_DEPT", "DEMO_CAT", "DEMO_STATE", 1, 3, 0],
+            ]
+        )
 
 
 @pytest.fixture
