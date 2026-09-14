@@ -1,12 +1,13 @@
 # DemandIQ
 
-Sistema de análisis de ventas observadas y, en fases posteriores, forecasting y apoyo a
+Sistema de análisis y forecasting de ventas observadas y, en fases posteriores, apoyo a
 decisiones de reposición. Portfolio de Python backend, Data Engineering y BI.
 
 **Estado: FOUNDATION + DATA FOUNDATION validadas con M5 real.** Están implementadas la ingesta
 batch, la persistencia PostgreSQL, la trazabilidad y una API de consulta.
-[Forecasting V1](docs/forecasting-spec.md) está especificado y aceptado (protocolo 1.0),
-pero todavía no implementado.
+[Forecasting V1](docs/forecasting-spec.md) está implementado conforme al protocolo 1.0:
+backtesting, selección previa al test, persistencia y reporte reproducible.
+[Guía de ejecución](docs/forecasting-runbook.md).
 
 ## Problema y límites
 
@@ -29,12 +30,13 @@ configurados/simulados cuando corresponda. No se afirma recuperar demanda perdid
 - API versionada, OpenAPI y liveness/readiness separados.
 - Tests unitarios, API, integración PostgreSQL y E2E con controles sintéticos propios.
 - Docker Compose y workflow de GitHub Actions.
+- Forecasting V1: seis folds, baseline semanal, candidato global Poisson recursivo y test final.
+- Runs, predicciones y métricas persistidos; modelos con checksum e informes regenerables.
 
 ## PLANNED
 
 - Política de correcciones del origen.
-- Implementación de baseline, candidato, evaluación temporal y forecasts conforme al
-  [protocolo Forecasting V1 aceptado](docs/forecasting-spec.md).
+- Forecast operativo posterior al test y exposición definitiva de resultados de forecasting.
 - Inventario configurado, reposición explicable y publicación de resultados analíticos.
 - Power BI y definición de vigencia de resultados.
 - Revisión de condiciones para compartir datos e informes.
@@ -43,10 +45,10 @@ configurados/simulados cuando corresponda. No se afirma recuperar demanda perdid
 ## Stack y arquitectura actual
 
 Python 3.13, FastAPI, Pydantic/pydantic-settings, PostgreSQL 18, SQLAlchemy 2, Psycopg 3,
-Alembic, pandas, uv, pytest/HTTPX, Ruff, Docker Compose y GitHub Actions.
+Alembic, pandas, NumPy, scikit-learn, uv, pytest/HTTPX, Ruff, Docker Compose y GitHub Actions.
 
-Las versiones estables concretas están en uv.lock. NumPy llega transitivamente con pandas,
-sin uso directo. scikit-learn no se instala aún: forecasting está fuera de esta entrega.
+Las versiones estables concretas están en uv.lock. NumPy se utiliza en forecasting.
+threadpoolctl, dependencia de scikit-learn, limita la ejecución a dos hilos CPU.
 Schemathesis se pospone; tienen prioridad los tests de datos, reglas y contratos HTTP explícitos.
 
 Un paquete Python, con API de lectura y CLI batch. La API no ejecuta ingestas ni entrenamientos.
@@ -55,7 +57,7 @@ Las migraciones son explícitas, no se ejecutan automáticamente al arrancar el 
 - **RAW:** raw.ingestion_loads registra intentos y referencias a copias originales por checksum.
   Los bytes se conservan en un archivo local/volumen. Base y archivo deben conservarse juntos.
 - **CORE:** productos, tiendas y ventas normalizadas.
-- **ANALYTICS:** pendiente; no se crean estructuras vacías.
+- **ANALYTICS:** runs, forecasts evaluados y métricas del protocolo 1.0 (migración 0002).
 
 Detalles: [contrato de datos](docs/data-contract.md) y [decisiones](docs/decisions.md).
 
@@ -160,7 +162,8 @@ Errores: error.code, error.message y error.details.
 La API no expone rutas del archivo ni credenciales.
 
 Readiness no implica actualidad analítica. Las cargas distinguen fecha de procesamiento y rango
-histórico. La definición de stale data y publicación de forecasts pertenece a otra fase.
+histórico. La publicación definitiva de forecasts y su API pertenecen a otra fase;
+los informes actuales solo aceptan runs completed.
 
 ## Tests y calidad
 
@@ -205,7 +208,7 @@ temporales. La CLI de la aplicación ingiere M5 real; ya no ofrece control-data 
 
 ## Validación de esta entrega
 
-- 35 tests pasan con PostgreSQL real: 24 unitarios/API y 11 integración/E2E.
+- 57 tests pasan con PostgreSQL real: 43 unitarios/API y 14 integración/E2E.
 - Ruff lint y format --check pasan.
 - Alembic upgrade, downgrade/upgrade de prueba y check sin diferencias pasan.
 - Docker build y arranque de ambos servicios con healthchecks pasan.
@@ -227,6 +230,26 @@ No se necesitaron cambios de implementación ni optimizaciones. Las evidencias l
 están en artifacts/m5-validation-report.md y artifacts/m5-reconciliation.json, ignoradas
 por Git. Esta validación corresponde al subconjunto indicado, no a todo el dataset.
 
+## Validación de Forecasting V1 con M5 real
+
+Run completed: 6f2358fb-f814-4c2e-accf-e59c7a710d66. Protocolo 1.0, 216 SKU,
+seis folds y test final de 14 días. Tiempo: 13.521 s;
+pico RSS del proceso Python: 265.52 MiB.
+
+La política congelada seleccionó weekday_mean_4. El candidato redujo el RMSE
+global de desarrollo, pero ganó solo 3 de 6 folds y empeoró el Bias absoluto.
+No se modificaron parámetros ni selección tras consultar el test.
+
+Se reconciliaron independientemente 42.336 predicciones y 10.736 métricas contra
+PostgreSQL, además de los checksums de siete modelos. La reingesta M5 sigue siendo
+idempotente y la API existente responde correctamente.
+
+Evidencias locales, ignoradas por Git:
+artifacts/6f2358fb-f814-4c2e-accf-e59c7a710d66/forecasting-v1-report.md,
+results.json, forecasts.csv y validation.json. El informe puede regenerarse desde
+PostgreSQL sin entrenar; Windows y Linux pueden utilizar distintos saltos de línea,
+pero su contenido normalizado coincide. Consulta la [guía](docs/forecasting-runbook.md).
+
 ## CI y entrega
 
 .github/workflows/ci.yml instala mediante uv.lock, ejecuta Ruff, pytest con PostgreSQL 18,
@@ -239,8 +262,8 @@ remoto de Actions. Git está inicializado; esta entrega no crea commits.
 
 ## Próximas decisiones
 
-Las decisiones de Forecasting V1 están aceptadas en el [protocolo 1.0](docs/forecasting-spec.md),
-incluida la política de selección baseline/candidato. Su implementación sigue pendiente.
+Forecasting V1 está implementado según el [protocolo 1.0](docs/forecasting-spec.md),
+incluida la política de selección baseline/candidato y su test separado.
 Después: política del escenario de inventario, integración con reposición y KPIs.
 
 Las dos revisiones Markdown originales permanecen en la raíz como contexto histórico.

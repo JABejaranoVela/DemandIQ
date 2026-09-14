@@ -104,3 +104,93 @@ def make_engine(settings: Settings) -> Engine:
         hide_parameters=True,
         connect_args={"connect_timeout": 5},
     )
+
+
+class ForecastRun(Base):
+    __tablename__ = "forecast_runs"
+    __table_args__ = (
+        CheckConstraint("status IN ('running', 'completed', 'failed')", name="status"),
+        CheckConstraint("horizon = 14", name="horizon"),
+        Index("ix_forecast_runs_completed", "status", "finished_at"),
+        {"schema": "analytics"},
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    kind: Mapped[str] = mapped_column(String(30))
+    status: Mapped[str] = mapped_column(String(16))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    duration_seconds: Mapped[float | None]
+    source: Mapped[str] = mapped_column(String(40))
+    source_loads: Mapped[list] = mapped_column(JSONB)
+    data_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    selection: Mapped[dict] = mapped_column(JSONB)
+    train_start: Mapped[DateValue]
+    train_end: Mapped[DateValue]
+    cutoff: Mapped[DateValue]
+    horizon: Mapped[int]
+    protocol_version: Mapped[str] = mapped_column(String(20))
+    features_version: Mapped[str] = mapped_column(String(20))
+    method: Mapped[str] = mapped_column(String(40))
+    configuration: Mapped[dict] = mapped_column(JSONB)
+    random_state: Mapped[int]
+    versions: Mapped[dict] = mapped_column(JSONB)
+    selected_method: Mapped[str | None] = mapped_column(String(40))
+    selected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision: Mapped[dict | None] = mapped_column(JSONB)
+    stages: Mapped[list] = mapped_column(JSONB)
+    error_code: Mapped[str | None] = mapped_column(String(60))
+    error_message: Mapped[str | None] = mapped_column(String(500))
+    error_details: Mapped[dict | None] = mapped_column(JSONB)
+
+
+class ForecastPrediction(Base):
+    __tablename__ = "forecasts"
+    __table_args__ = (
+        CheckConstraint("horizon_step BETWEEN 1 AND 14", name="horizon_step"),
+        CheckConstraint(
+            "predicted_units >= 0 AND predicted_units < 'Infinity'::float8",
+            name="finite_prediction",
+        ),
+        CheckConstraint(
+            "actual_units >= 0 AND actual_units < 'Infinity'::float8", name="finite_actual"
+        ),
+        {"schema": "analytics"},
+    )
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("analytics.forecast_runs.id", ondelete="CASCADE"), primary_key=True
+    )
+    stage: Mapped[str] = mapped_column(String(20), primary_key=True)
+    method: Mapped[str] = mapped_column(String(40), primary_key=True)
+    store_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    item_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    target_date: Mapped[DateValue] = mapped_column(primary_key=True)
+    cutoff: Mapped[DateValue]
+    horizon_step: Mapped[int]
+    predicted_units: Mapped[float]
+    actual_units: Mapped[float]
+    volume_segment: Mapped[str] = mapped_column(String(10))
+    intermittency_segment: Mapped[str] = mapped_column(String(10))
+
+
+class ForecastMetric(Base):
+    __tablename__ = "forecast_metrics"
+    __table_args__ = (
+        CheckConstraint(
+            "(status = 'defined' AND value IS NOT NULL AND denominator > 0) OR "
+            "(status = 'undefined' AND value IS NULL AND denominator = 0)",
+            name="defined",
+        ),
+        {"schema": "analytics"},
+    )
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("analytics.forecast_runs.id", ondelete="CASCADE"), primary_key=True
+    )
+    stage: Mapped[str] = mapped_column(String(20), primary_key=True)
+    method: Mapped[str] = mapped_column(String(40), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(20), primary_key=True)
+    scope_value: Mapped[str] = mapped_column(String(100), primary_key=True)
+    name: Mapped[str] = mapped_column(String(20), primary_key=True)
+    value: Mapped[float | None]
+    numerator: Mapped[float]
+    denominator: Mapped[float]
+    status: Mapped[str] = mapped_column(String(12))

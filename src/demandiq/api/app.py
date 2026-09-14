@@ -103,7 +103,7 @@ def create_app(settings: Settings | None = None, engine: Engine | None = None) -
     def ready(request: Request):
         with request.app.state.engine.connect() as connection:
             revision = connection.scalar(text("SELECT version_num FROM alembic_version"))
-            if revision != "0001":
+            if revision != "0002":
                 raise HTTPException(503, "Schema migration is required")
             connection.execute(select(IngestionLoad.id).limit(1))
         return ReadyResponse()

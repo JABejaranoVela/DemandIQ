@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     postgres_user: str = "demandiq"
     postgres_password: SecretStr = SecretStr("")
     data_dir: Path = Path("data/raw")
+    forecast_artifacts_dir: Path = Path("artifacts/forecasting")
     archive_dir: Path = Path("data/archive")
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
     source: Literal["m5", "synthetic-control"] = "m5"

@@ -3,12 +3,16 @@ import json
 import logging
 from dataclasses import asdict
 from pathlib import Path
+from uuid import UUID
 
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from demandiq.config import Settings, configure_logging
 from demandiq.db import make_engine
+from demandiq.forecasting.protocol import ForecastError
+from demandiq.forecasting.report import generate_report
+from demandiq.forecasting.service import ForecastFailed, run_backtest
 from demandiq.ingestion.m5 import InputError, Selection
 from demandiq.ingestion.service import IngestionFailed, ingest
 
@@ -23,10 +27,31 @@ def main() -> int:
         batch.add_argument("--" + name, action="append")
     batch.add_argument("--start-date")
     batch.add_argument("--end-date")
+    forecast = commands.add_parser("forecast", help="Frozen observed-sales protocol 1.0")
+    actions = forecast.add_subparsers(dest="forecast_action", required=True)
+    backtest = actions.add_parser("backtest", help="Run six folds, frozen selection and final test")
+    backtest.add_argument("--artifacts-dir", type=Path)
+    report = actions.add_parser("report", help="Regenerate a report from a completed persisted run")
+    report.add_argument("--run-id", required=True, type=UUID)
+    report.add_argument("--artifacts-dir", type=Path)
     args = parser.parse_args()
     try:
         settings = Settings(source="m5")
         configure_logging(settings.log_level)
+        if args.command == "forecast":
+            output = args.artifacts_dir or settings.forecast_artifacts_dir
+            engine = make_engine(settings)
+            try:
+                run_id = (
+                    run_backtest(engine, output)
+                    if args.forecast_action == "backtest"
+                    else args.run_id
+                )
+                path = generate_report(engine, run_id, output)
+            finally:
+                engine.dispose()
+            print(json.dumps({"run_id": str(run_id), "report": str(path)}))
+            return 0
         changes = {
             key: getattr(args, key)
             for key in ("data_dir", "archive_dir")
@@ -52,6 +77,19 @@ def main() -> int:
             engine.dispose()
         print(json.dumps(asdict(result), default=str))
         return 0
+    except ForecastFailed as exc:
+        print(json.dumps({"run_id": str(exc.run_id), "error": exc.code, "message": str(exc)}))
+    except ForecastError as exc:
+        print(json.dumps({"error": exc.code, "message": str(exc), "details": exc.details}))
+    except OSError:
+        print(
+            json.dumps(
+                {
+                    "error": "artifact_access_error",
+                    "message": "Check artifact directory; completed runs can regenerate reports",
+                }
+            )
+        )
     except IngestionFailed as exc:
         print(json.dumps({"load_id": str(exc.load_id), "error": exc.code, "message": str(exc)}))
     except InputError as exc:

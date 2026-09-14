@@ -11,9 +11,10 @@ FROM python:3.13-slim-bookworm AS runtime
 ENV PATH="/app/.venv/bin:$PATH" PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 RUN groupadd --gid 10001 demandiq && useradd --uid 10001 --gid 10001 --no-create-home demandiq \
-    && mkdir -p /app/data/archive && chown -R demandiq:demandiq /app/data
+    && mkdir -p /app/data/archive /app/artifacts/forecasting \
+    && chown -R demandiq:demandiq /app/data /app/artifacts
 COPY --from=build /app/.venv /app/.venv
-COPY alembic.ini ./
+COPY alembic.ini uv.lock ./
 COPY alembic ./alembic
 USER demandiq
 EXPOSE 8000

@@ -28,6 +28,7 @@ services:
       DEMANDIQ_DATA_DIR: /app/data/raw
       DEMANDIQ_ARCHIVE_DIR: /app/data/archive
       DEMANDIQ_LOG_LEVEL: ${DEMANDIQ_LOG_LEVEL:-INFO}
+      DEMANDIQ_FORECAST_ARTIFACTS_DIR: /app/artifacts/forecasting
       DEMANDIQ_SOURCE: m5
       DEMANDIQ_M5_START_DATE: ${DEMANDIQ_M5_START_DATE:-}
       DEMANDIQ_M5_END_DATE: ${DEMANDIQ_M5_END_DATE:-}
@@ -40,9 +41,11 @@ services:
     volumes:
       - ./data/raw:/app/data/raw:ro
       - ingestion_archive:/app/data/archive
+      - forecasting_artifacts:/app/artifacts/forecasting
     depends_on:
       postgres:
         condition: service_healthy
 volumes:
   postgres_data:
   ingestion_archive:
+  forecasting_artifacts:

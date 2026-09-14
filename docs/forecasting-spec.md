@@ -3,7 +3,7 @@
 Status: Accepted  
 Protocol version: 1.0  
 Accepted on: 2026-09-14  
-Implementation status: Not implemented
+Implementation status: Implemented and validated on the accepted M5 subset
 
 ## 1. Objetivo y alcance
 
@@ -386,3 +386,16 @@ La aceptación del protocolo no implica que estas funcionalidades estén impleme
 - [Evaluación temporal con origen móvil](https://otexts.com/fpp3/tscv.html).
 - [HistGradientBoostingRegressor](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingRegressor.html).
 - [Propiedades y limitaciones de WAPE](https://robjhyndman.com/hyndsight/wape.html).
+
+## Detalles de implementación (sin cambio del protocolo 1.0)
+
+El protocolo se materializa en src/demandiq/forecasting/protocol.py. La semilla fija es 42;
+la ejecución utiliza dos hilos CPU, sin búsqueda ni modificación de parámetros por resultados.
+Volumen e intermitencia usan terciles relativos de entrenamiento con desempate estable por
+item_id. Las predicciones mantienen decimales. La selección se confirma en PostgreSQL antes
+del test; solo un run completed puede generar un informe válido.
+
+La migración 0002 incorpora runs, forecasts y métricas en analytics. Los artefactos del candidato
+se conservan por corte fuera de la base, con checksum y versiones. La CLI implementa backtest
+y regeneración de informes; no genera todavía el forecast operativo posterior al test.
+Consulta [ejecución y reproducción](forecasting-runbook.md).

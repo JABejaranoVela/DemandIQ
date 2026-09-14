@@ -77,7 +77,10 @@ def database_engine():
 
 @pytest.fixture
 def db(database_engine):
-    statement = text("TRUNCATE core.sales, core.products, core.stores, raw.ingestion_loads")
+    statement = text(
+        "TRUNCATE analytics.forecast_metrics, analytics.forecasts, analytics.forecast_runs, "
+        "core.sales, core.products, core.stores, raw.ingestion_loads"
+    )
     with database_engine.begin() as connection:
         connection.execute(statement)
     yield database_engine
